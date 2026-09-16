@@ -1,0 +1,354 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>VISTA — ระบบติดตามสภาพจราจร (เดโม)</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans+Thai:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --bg: #F4F6F8;
+    --surface: #FFFFFF;
+    --ink: #1E2830;
+    --muted: #66727C;
+    --line: #D9DFE4;
+    --placeholder: #E6EAED;
+    --asphalt: #2E3A44;
+    --on-asphalt: #FFFFFF;
+    --signal: #E8A317;
+    --signal-soft: #FBF1DC;
+    --count-line: #E5484D;
+    --radius-sm: 6px;
+    --radius-lg: 12px;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) {
+      --bg: #12181D; --surface: #1A2228; --ink: #E7ECEF; --muted: #98A4AD;
+      --line: #2C363E; --placeholder: #232D34; --asphalt: #3A4853; --on-asphalt: #FFFFFF;
+      --signal: #F0B43A; --signal-soft: #2E2716; --count-line: #F2666A;
+    }
+  }
+  :root[data-theme="dark"] {
+    --bg: #12181D; --surface: #1A2228; --ink: #E7ECEF; --muted: #98A4AD;
+    --line: #2C363E; --placeholder: #232D34; --asphalt: #3A4853; --on-asphalt: #FFFFFF;
+    --signal: #F0B43A; --signal-soft: #2E2716; --count-line: #F2666A;
+  }
+
+  * { box-sizing: border-box; }
+  html, body { margin: 0; }
+  body {
+    background: var(--bg);
+    color: var(--ink);
+    font-family: "IBM Plex Sans Thai", "Noto Sans Thai", "Leelawadee UI", Tahoma, sans-serif;
+    font-size: 16px;
+    line-height: 1.6;
+  }
+  img, svg { max-width: 100%; }
+  button, select { font: inherit; color: inherit; }
+  :focus-visible { outline: 3px solid var(--signal); outline-offset: 2px; }
+
+  /* ---------- Header / nav ---------- */
+  .site-header {
+    position: sticky; top: 0; z-index: 10;
+    background: var(--surface);
+    border-bottom: 1px solid var(--line);
+  }
+  .header-inner {
+    max-width: 1120px; margin: 0 auto;
+    padding: 12px 20px;
+    display: flex; align-items: center; gap: 16px; flex-wrap: wrap;
+  }
+  .brand {
+    display: flex; align-items: center; gap: 10px;
+    font-weight: 700; font-size: 1.25rem; letter-spacing: 0.04em;
+    color: var(--ink); text-decoration: none; margin-right: auto;
+  }
+  .brand svg { width: 26px; height: 26px; }
+  .nav { display: flex; gap: 8px; flex-wrap: wrap; }
+  .nav a {
+    padding: 8px 16px;
+    border-radius: var(--radius-sm);
+    background: var(--asphalt); color: var(--on-asphalt);
+    text-decoration: none; font-weight: 600; font-size: 0.95rem;
+    border-bottom: 3px solid transparent;
+  }
+  .nav a[aria-current="page"] { border-bottom-color: var(--signal); }
+
+  main { max-width: 1120px; margin: 0 auto; padding: 24px 20px 48px; }
+  .page { display: none; }
+  .page.active { display: block; }
+  .page-title { font-size: 1.5rem; font-weight: 600; margin: 0 0 16px; }
+
+  .panel {
+    background: var(--surface);
+    border: 1px solid var(--line);
+    border-radius: var(--radius-lg);
+    padding: 20px;
+  }
+  .empty-note { color: var(--muted); font-size: 0.95rem; }
+
+  /* ---------- Home ---------- */
+  .alert {
+    display: flex; gap: 14px; align-items: center;
+    background: var(--signal-soft);
+    border-left: 5px solid var(--signal);
+    border-radius: var(--radius-sm);
+    padding: 12px 16px; margin-bottom: 20px;
+  }
+  .alert svg { flex: none; width: 34px; height: 34px; }
+  .alert strong { display: block; font-weight: 600; }
+  .alert span { color: var(--muted); font-size: 0.95rem; }
+
+  .stats-row {
+    display: grid; grid-template-columns: repeat(3, 1fr); gap: 16px;
+    margin-bottom: 24px;
+  }
+  .stat {
+    background: var(--asphalt); color: var(--on-asphalt);
+    border-radius: var(--radius-sm);
+    padding: 22px 16px; text-align: center;
+  }
+  .stat .label { font-size: 0.95rem; opacity: 0.85; }
+  .stat .value { font-size: 1.6rem; font-weight: 700; line-height: 1.3; }
+
+  .home-grid { display: grid; grid-template-columns: 2fr 1fr; gap: 16px; }
+  .panel h2 { font-size: 1.05rem; font-weight: 600; margin: 0 0 12px; }
+
+  .thumb {
+    display: flex; align-items: center; justify-content: center; flex-direction: column; gap: 8px;
+    aspect-ratio: 16 / 9; width: 100%;
+    background: var(--placeholder); border-radius: var(--radius-sm);
+    color: var(--muted); text-decoration: none;
+    border: 2px dashed var(--line);
+  }
+  .thumb:hover { border-color: var(--signal); }
+  .thumb svg { width: 72px; height: 72px; }
+
+  .feed { display: flex; flex-direction: column; height: 100%; }
+  .feed-list { flex: 1; min-height: 180px; display: flex; align-items: center; justify-content: center; text-align: center; }
+  .feed-links { display: flex; justify-content: space-between; gap: 8px; border-top: 1px solid var(--line); padding-top: 12px; }
+  .feed-links a { color: var(--muted); text-decoration: none; font-weight: 600; font-size: 0.9rem; }
+
+  /* ---------- Live ---------- */
+  .video {
+    position: relative; aspect-ratio: 16 / 9; width: 100%;
+    background: var(--placeholder); border-radius: var(--radius-lg);
+    overflow: hidden;
+    display: flex; align-items: center; justify-content: center;
+    color: var(--muted);
+  }
+  .count-line {
+    position: absolute; left: 0; right: 0; top: 62%;
+    height: 2px; background: var(--count-line);
+  }
+  .count-line::after {
+    content: "เส้นนับรถ";
+    position: absolute; right: 10px; top: -24px;
+    font-size: 0.8rem; color: var(--count-line);
+  }
+  .counters {
+    display: grid; grid-template-columns: repeat(3, 1fr); gap: 16px;
+    margin: 20px 0;
+  }
+  .counter { text-align: center; padding: 14px; border-bottom: 1px solid var(--line); }
+  .counter .label { color: var(--muted); font-size: 0.95rem; }
+  .counter .value { font-size: 1.5rem; font-weight: 700; }
+  .status-bar {
+    background: var(--asphalt); color: var(--on-asphalt);
+    border-radius: var(--radius-sm);
+    text-align: center; padding: 12px; font-weight: 600;
+  }
+
+  /* ---------- Stats ---------- */
+  .filters { display: flex; justify-content: space-between; gap: 16px; flex-wrap: wrap; margin-bottom: 20px; }
+  .filters label { display: flex; flex-direction: column; gap: 4px; font-size: 0.9rem; color: var(--muted); min-width: 220px; flex: 0 1 320px; }
+  .filters select {
+    appearance: none;
+    padding: 10px 40px 10px 14px;
+    border-radius: var(--radius-sm);
+    border: 1px solid var(--line);
+    background: var(--placeholder) url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='16' height='16' viewBox='0 0 24 24' fill='none' stroke='%2366727C' stroke-width='3'%3E%3Cpath d='M6 9l6 6 6-6'/%3E%3C/svg%3E") no-repeat right 12px center;
+    color: var(--ink); font-size: 1rem; cursor: pointer;
+  }
+  .chart-area {
+    min-height: 340px; background: var(--placeholder); border-radius: var(--radius-sm);
+    display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 6px;
+    text-align: center; padding: 20px;
+  }
+  .chart-area strong { font-weight: 600; }
+
+  /* ---------- About ---------- */
+  .about h1 { font-size: 2rem; font-weight: 700; margin: 0 0 20px; line-height: 1.3; }
+  .about section { margin-bottom: 28px; max-width: 72ch; }
+  .about h2 { font-size: 1.05rem; font-weight: 600; margin: 0 0 8px; }
+  .about p { margin: 0; }
+  .spec { width: 100%; border-collapse: collapse; }
+  .spec th, .spec td { text-align: left; padding: 12px 14px; border-bottom: 1px solid var(--line); font-weight: 400; }
+  .spec td { color: var(--muted); text-align: right; }
+  .credits { border-top: 1px solid var(--line); padding-top: 16px; color: var(--muted); font-size: 0.95rem; }
+
+  @media (max-width: 760px) {
+    .stats-row, .counters { grid-template-columns: 1fr; }
+    .home-grid { grid-template-columns: 1fr; }
+    .nav { width: 100%; }
+    .nav a { flex: 1; text-align: center; padding: 8px 6px; font-size: 0.85rem; }
+    .filters label { flex: 1 1 100%; }
+  }
+</style>
+</head>
+<body>
+
+<header class="site-header">
+  <div class="header-inner">
+    <a class="brand" href="#home" aria-label="VISTA หน้าแรก">
+      <svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M3 7a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v2.5l5-3v11l-5-3V17a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/></svg>
+      VISTA
+    </a>
+    <nav class="nav" aria-label="เมนูหลัก">
+      <a href="#home">หน้าแรก</a>
+      <a href="#live">ถ่ายทอดสด</a>
+      <a href="#stats">รายงานสถิติ</a>
+      <a href="#about">เกี่ยวกับ</a>
+    </nav>
+  </div>
+</header>
+
+<main>
+
+  <!-- ================= หน้าแรก ================= -->
+  <div class="page" id="page-home">
+    <div class="alert" role="status">
+      <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 2 1 21h22z" fill="var(--signal)"/><path d="M12 9v5" stroke="#1E2830" stroke-width="2.2" stroke-linecap="round"/><circle cx="12" cy="17.2" r="1.2" fill="#1E2830"/></svg>
+      <div>
+        <strong>ตอนนี้: –</strong>
+        <span>หน้ามหาวิทยาลัยกรุงเทพ · อัปเดตล่าสุดเวลา --:--</span>
+      </div>
+    </div>
+
+    <div class="stats-row">
+      <div class="stat"><div class="label">จำนวนรถทั้งหมด</div><div class="value">– คัน</div></div>
+      <div class="stat"><div class="label">ความเร็วเฉลี่ยตอนนี้</div><div class="value">– กม./ชม.</div></div>
+      <div class="stat"><div class="label">ช่วงที่ติดหนักสุดวันนี้</div><div class="value">--:-- – --:--</div></div>
+    </div>
+
+    <div class="home-grid">
+      <div class="panel">
+        <h2>ภาพย่อ (คลิกเพื่อไปหน้าถ่ายทอดสด)</h2>
+        <a class="thumb" href="#live" aria-label="ไปหน้าถ่ายทอดสด">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" aria-hidden="true"><rect x="3" y="4" width="18" height="16" rx="2"/><circle cx="9" cy="10" r="1.8"/><path d="m4 18 5-5 3 3 3-3 5 5"/></svg>
+          ยังไม่มีภาพจากกล้อง
+        </a>
+      </div>
+      <div class="panel feed">
+        <h2>โพสต์ล่าสุดของเพจ Facebook และ X</h2>
+        <div class="feed-list empty-note">ยังไม่มีโพสต์</div>
+        <div class="feed-links">
+          <a href="#" onclick="return false;">Facebook</a>
+          <a href="#" onclick="return false;">X</a>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ================= ถ่ายทอดสด ================= -->
+  <div class="page" id="page-live">
+    <h1 class="page-title">ถ่ายทอดสด</h1>
+    <div class="video" aria-label="พื้นที่วิดีโอ">
+      <span>ไม่มีสัญญาณวิดีโอ</span>
+      <div class="count-line" aria-hidden="true"></div>
+    </div>
+    <div class="counters">
+      <div class="counter"><div class="label">จำนวนรถยนต์</div><div class="value">– คัน</div></div>
+      <div class="counter"><div class="label">จำนวนรถตู้</div><div class="value">– คัน</div></div>
+      <div class="counter"><div class="label">จำนวนรถบัส</div><div class="value">– คัน</div></div>
+    </div>
+    <div class="status-bar" role="status">สถานะตอนนี้: –</div>
+  </div>
+
+  <!-- ================= รายงานสถิติ ================= -->
+  <div class="page" id="page-stats">
+    <h1 class="page-title">รายงานสถิติ</h1>
+    <div class="panel">
+      <div class="filters">
+        <label>ช่วงเวลา
+          <select id="range">
+            <option>วันนี้</option>
+            <option>7 วันล่าสุด</option>
+            <option>30 วันล่าสุด</option>
+          </select>
+        </label>
+        <label>ประเภทรถ
+          <select id="type">
+            <option>ทั้งหมด</option>
+            <option>รถยนต์</option>
+            <option>รถตู้</option>
+            <option>รถบัส</option>
+          </select>
+        </label>
+      </div>
+      <div class="chart-area">
+        <strong>กราฟแสดงสัดส่วนจำนวนรถ</strong>
+        <span class="empty-note" id="chart-note">ยังไม่มีข้อมูล · วันนี้ · ทั้งหมด</span>
+      </div>
+    </div>
+  </div>
+
+  <!-- ================= เกี่ยวกับ ================= -->
+  <div class="page" id="page-about">
+    <div class="panel about">
+      <h1>เกี่ยวกับระบบ</h1>
+
+      <section>
+        <h2>ข้อมูลเชิงเทคนิค</h2>
+        <p class="empty-note">รอเพิ่มรายละเอียด</p>
+      </section>
+
+      <section>
+        <h2>อุปกรณ์และวิธีวัด</h2>
+        <table class="spec">
+          <tbody>
+            <tr><th scope="row">กล้อง</th><td>–</td></tr>
+            <tr><th scope="row">โมเดลตรวจจับ</th><td>–</td></tr>
+            <tr><th scope="row">วิธีนับ</th><td>–</td></tr>
+          </tbody>
+        </table>
+      </section>
+
+      <section>
+        <h2>การตั้งค่าระบบ</h2>
+        <p class="empty-note">รอเพิ่มรายละเอียด</p>
+      </section>
+
+      <div class="credits">ผู้จัดทำ: – &nbsp;|&nbsp; อาจารย์ที่ปรึกษา: – &nbsp;|&nbsp; สถาบัน: –</div>
+    </div>
+  </div>
+
+</main>
+
+<script>
+  const pages = ["home", "live", "stats", "about"];
+  function route() {
+    const name = pages.includes(location.hash.slice(1)) ? location.hash.slice(1) : "home";
+    pages.forEach(p => {
+      document.getElementById("page-" + p).classList.toggle("active", p === name);
+    });
+    document.querySelectorAll(".nav a").forEach(a => {
+      if (a.getAttribute("href") === "#" + name) a.setAttribute("aria-current", "page");
+      else a.removeAttribute("aria-current");
+    });
+    window.scrollTo(0, 0);
+  }
+  window.addEventListener("hashchange", route);
+  route();
+
+  const range = document.getElementById("range");
+  const type = document.getElementById("type");
+  const note = document.getElementById("chart-note");
+  function updateNote() { note.textContent = "ยังไม่มีข้อมูล · " + range.value + " · " + type.value; }
+  range.addEventListener("change", updateNote);
+  type.addEventListener("change", updateNote);
+</script>
+</body>
+</html>
