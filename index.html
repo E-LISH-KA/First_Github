@@ -116,15 +116,20 @@
   .home-grid { display: grid; grid-template-columns: 2fr 1fr; gap: 16px; }
   .panel h2 { font-size: 1.05rem; font-weight: 600; margin: 0 0 12px; }
 
-  .thumb {
-    display: flex; align-items: center; justify-content: center; flex-direction: column; gap: 8px;
-    aspect-ratio: 16 / 9; width: 100%;
+  .map-wrap {
+    position: relative;
+    width: 100%; aspect-ratio: 16 / 9; min-height: 280px;
     background: var(--placeholder); border-radius: var(--radius-sm);
-    color: var(--muted); text-decoration: none;
-    border: 2px dashed var(--line);
+    overflow: hidden;
   }
-  .thumb:hover { border-color: var(--signal); }
-  .thumb svg { width: 72px; height: 72px; }
+  #map { position: absolute; inset: 0; }
+  .map-message {
+    position: absolute; inset: 0; z-index: 5;
+    display: flex; align-items: center; justify-content: center;
+    padding: 20px; text-align: center;
+    background: var(--placeholder); color: var(--muted); font-size: 0.95rem;
+  }
+  .map-message[hidden] { display: none; }
 
   .feed { display: flex; flex-direction: column; height: 100%; }
   .feed-list { flex: 1; min-height: 180px; display: flex; align-items: center; justify-content: center; text-align: center; }
@@ -235,11 +240,11 @@
 
     <div class="home-grid">
       <div class="panel">
-        <h2>ภาพย่อ (คลิกเพื่อไปหน้าถ่ายทอดสด)</h2>
-        <a class="thumb" href="#live" aria-label="ไปหน้าถ่ายทอดสด">
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" aria-hidden="true"><rect x="3" y="4" width="18" height="16" rx="2"/><circle cx="9" cy="10" r="1.8"/><path d="m4 18 5-5 3 3 3-3 5 5"/></svg>
-          ยังไม่มีภาพจากกล้อง
-        </a>
+        <h2>แผนที่สภาพจราจร</h2>
+        <div class="map-wrap">
+          <div id="map" aria-label="แผนที่ Longdo Map"></div>
+          <div class="map-message" id="map-message" role="status">กำลังโหลดแผนที่...</div>
+        </div>
       </div>
       <div class="panel feed">
         <h2>โพสต์ล่าสุดของเพจ Facebook และ X</h2>
@@ -328,6 +333,78 @@
 </main>
 
 <script>
+  // =====================================================
+  // ใส่ Longdo Map API Key ตรงนี้
+  // =====================================================
+  const LONGDO_API_KEY = "be4761fc916359b83715d0aefa51a786";
+
+  // ---------- ข้อมูลถนน (ตอนนี้แสดงเป็นสีเขียวอย่างเดียว) ----------
+  // พิกัดแต่ละจุดเรียงตามแนวถนน ใส่เพิ่มได้ไม่จำกัด
+  const ROADS = [
+    {
+      id: "phahonyothin-bu",
+      name: "ถนนพหลโยธิน หน้า ม.กรุงเทพ",
+      path: [
+        { lon: 100.616357, lat: 14.044815 },
+        { lon: 100.616164, lat: 14.039878 },
+        { lon: 100.616033, lat: 14.034940 }
+      ]
+    }
+  ];
+  const MAP_CENTER = { lon: 100.616272, lat: 14.039592 };
+  const MAP_ZOOM = 15;
+  const LINE_GREEN = "rgba(52,201,138,0.95)";
+
+  // ---------- แผนที่ ----------
+  let map = null;
+  let mapLoadStarted = false;
+  const mapMessage = document.getElementById("map-message");
+
+  function showMapMessage(text) {
+    mapMessage.textContent = text;
+    mapMessage.hidden = false;
+  }
+
+  function initMap() {
+    map = new longdo.Map({ placeholder: document.getElementById("map") });
+    map.location(MAP_CENTER, true);
+    map.zoom(MAP_ZOOM, true);
+    ROADS.forEach(road => {
+      const line = new longdo.Polyline(road.path, { lineWidth: 6, lineColor: LINE_GREEN });
+      map.Overlays.add(line);
+    });
+    mapMessage.hidden = true;
+  }
+
+  function loadMap() {
+    if (mapLoadStarted) return;
+    mapLoadStarted = true;
+
+    if (!LONGDO_API_KEY || LONGDO_API_KEY.includes("ใส่_API_KEY")) {
+      showMapMessage("ยังไม่ได้ใส่ API Key ของ Longdo Map ในโค้ด");
+      return;
+    }
+
+    const script = document.createElement("script");
+    script.src = "https://api.longdo.com/map/?key=" + encodeURIComponent(LONGDO_API_KEY);
+    script.onload = () => {
+      if (!window.longdo || !window.longdo.Map) {
+        showMapMessage("โหลดแผนที่ไม่สำเร็จ ตรวจสอบ API Key และโดเมนที่ได้รับอนุญาต");
+        return;
+      }
+      try {
+        initMap();
+      } catch (e) {
+        showMapMessage("โหลดแผนที่ไม่สำเร็จ: " + e.message);
+      }
+    };
+    script.onerror = () => {
+      showMapMessage("เชื่อมต่อ Longdo Map ไม่ได้ ตรวจสอบอินเทอร์เน็ตแล้วลองรีเฟรชหน้า");
+    };
+    document.head.appendChild(script);
+  }
+
+  // ---------- สลับหน้า ----------
   const pages = ["home", "live", "stats", "about"];
   function route() {
     const name = pages.includes(location.hash.slice(1)) ? location.hash.slice(1) : "home";
@@ -339,6 +416,12 @@
       else a.removeAttribute("aria-current");
     });
     window.scrollTo(0, 0);
+
+    // แผนที่ต้องโหลดตอนหน้าแรกแสดงอยู่ ไม่อย่างนั้นจะได้ขนาดเป็นศูนย์
+    if (name === "home") {
+      if (!mapLoadStarted) loadMap();
+      else if (map && typeof map.resize === "function") map.resize();
+    }
   }
   window.addEventListener("hashchange", route);
   route();
