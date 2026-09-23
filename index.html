@@ -19,7 +19,6 @@
     --on-asphalt: #FFFFFF;
     --signal: #E8A317;
     --signal-soft: #FBF1DC;
-    --count-line: #E5484D;
     --radius-sm: 6px;
     --radius-lg: 12px;
     /* สีเส้นถนนบนแผนที่ ใช้ค่าเดียวทั้งโหมดสว่างและมืด เพราะตัวแผนที่เป็นโทนสว่างเสมอ */
@@ -29,13 +28,13 @@
     :root:not([data-theme="light"]) {
       --bg: #12181D; --surface: #1A2228; --ink: #E7ECEF; --muted: #98A4AD;
       --line: #2C363E; --placeholder: #232D34; --asphalt: #3A4853; --on-asphalt: #FFFFFF;
-      --signal: #F0B43A; --signal-soft: #2E2716; --count-line: #F2666A;
+      --signal: #F0B43A; --signal-soft: #2E2716;
     }
   }
   :root[data-theme="dark"] {
     --bg: #12181D; --surface: #1A2228; --ink: #E7ECEF; --muted: #98A4AD;
     --line: #2C363E; --placeholder: #232D34; --asphalt: #3A4853; --on-asphalt: #FFFFFF;
-    --signal: #F0B43A; --signal-soft: #2E2716; --count-line: #F2666A;
+    --signal: #F0B43A; --signal-soft: #2E2716;
   }
 
   * { box-sizing: border-box; }
@@ -125,13 +124,13 @@
     overflow: hidden;
   }
   #map { position: absolute; inset: 0; }
-  .map-message {
+  .map-message, .video-message {
     position: absolute; inset: 0; z-index: 5;
     display: flex; align-items: center; justify-content: center;
     padding: 20px; text-align: center;
     background: var(--placeholder); color: var(--muted); font-size: 0.95rem;
   }
-  .map-message[hidden] { display: none; }
+  .map-message[hidden], .video-message[hidden] { display: none; }
 
   .feed { display: flex; flex-direction: column; height: 100%; }
   .feed-list { flex: 1; min-height: 180px; display: flex; align-items: center; justify-content: center; text-align: center; }
@@ -146,20 +145,21 @@
     display: flex; align-items: center; justify-content: center;
     color: var(--muted);
   }
-  .video iframe {
+  .video video {
     position: absolute; inset: 0;
-    width: 100%; height: 100%; border: 0;
+    width: 100%; height: 100%;
+    object-fit: cover; display: block;
   }
-  .count-line {
-    pointer-events: none;
-    position: absolute; left: 0; right: 0; top: 62%;
-    height: 2px; background: var(--count-line);
+  .sound-toggle {
+    position: absolute; right: 12px; bottom: 12px; z-index: 2;
+    display: inline-flex; align-items: center; gap: 8px;
+    min-height: 44px; padding: 8px 14px;
+    border: 0; border-radius: var(--radius-sm);
+    background: var(--asphalt); color: var(--on-asphalt);
+    font-size: 0.9rem; font-weight: 600; cursor: pointer;
   }
-  .count-line::after {
-    content: "เส้นนับรถ";
-    position: absolute; right: 10px; top: -24px;
-    font-size: 0.8rem; color: var(--count-line);
-  }
+  .sound-toggle svg { width: 20px; height: 20px; flex: none; }
+  .sound-toggle svg[hidden], .sound-toggle[hidden] { display: none; }
   .counters {
     display: grid; grid-template-columns: repeat(3, 1fr); gap: 16px;
     margin: 20px 0;
@@ -268,13 +268,14 @@
   <div class="page" id="page-live">
     <h1 class="page-title">ถ่ายทอดสด</h1>
     <div class="video" aria-label="พื้นที่วิดีโอ">
-      <iframe
-        src="https://www.youtube.com/embed/JMfT-Gkwy1Q"
-        title="คลิปทดสอบการเล่นวิดีโอ"
-        allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
-        referrerpolicy="strict-origin-when-cross-origin"
-        allowfullscreen></iframe>
-      <div class="count-line" aria-hidden="true"></div>
+      <!-- วิดีโอทดสอบ: ปิดเสียง วนซ้ำ ไม่มีแถบควบคุม เริ่มเล่นเมื่อเข้าหน้านี้ (ดู route()) -->
+      <video id="live-video" src="video/demo-traffic.mp4" muted loop playsinline preload="none"></video>
+      <button type="button" class="sound-toggle" id="sound-toggle">
+        <svg class="icon-muted" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M11 5 6 9H3v6h3l5 4z" fill="currentColor"/><path d="M16 9l5 6M21 9l-5 6"/></svg>
+        <svg class="icon-sound" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" hidden><path d="M11 5 6 9H3v6h3l5 4z" fill="currentColor"/><path d="M15.5 8.5a5 5 0 0 1 0 7M18.5 5.5a9 9 0 0 1 0 13"/></svg>
+        <span class="sound-label">เปิดเสียง</span>
+      </button>
+      <div class="video-message" id="video-message" role="status" hidden>เล่นวิดีโอไม่ได้ ตรวจสอบว่ามีไฟล์ video/demo-traffic.mp4 อยู่ใน repo</div>
     </div>
     <div class="counters">
       <div class="counter"><div class="label">จำนวนรถยนต์</div><div class="value">– คัน</div></div>
@@ -426,6 +427,41 @@
     document.head.appendChild(script);
   }
 
+  // ---------- วิดีโอหน้าถ่ายทอดสด ----------
+  const liveVideo = document.getElementById("live-video");
+  const soundToggle = document.getElementById("sound-toggle");
+  const videoMessage = document.getElementById("video-message");
+  liveVideo.muted = true; // เบราว์เซอร์ยอมให้เล่นเองได้เฉพาะตอนปิดเสียง
+
+  function updateSoundToggle() {
+    const muted = liveVideo.muted;
+    soundToggle.querySelector(".icon-muted").toggleAttribute("hidden", !muted);
+    soundToggle.querySelector(".icon-sound").toggleAttribute("hidden", muted);
+    soundToggle.querySelector(".sound-label").textContent = muted ? "เปิดเสียง" : "ปิดเสียง";
+  }
+
+  function showVideoError() {
+    videoMessage.hidden = false;
+    soundToggle.hidden = true;
+  }
+
+  function playLiveVideo() {
+    const result = liveVideo.play();
+    // ถ้าเบราว์เซอร์ไม่ยอมเล่น play() จะส่งข้อผิดพลาดกลับมา ต้องดักไว้ไม่ให้ขึ้นเป็น error ในคอนโซล
+    if (result && typeof result.catch === "function") {
+      result.catch(err => {
+        if (err.name === "NotSupportedError") showVideoError();
+      });
+    }
+  }
+
+  soundToggle.addEventListener("click", () => {
+    liveVideo.muted = !liveVideo.muted;
+    updateSoundToggle();
+  });
+  liveVideo.addEventListener("error", showVideoError);
+  updateSoundToggle();
+
   // ---------- สลับหน้า ----------
   const pages = ["home", "live", "stats", "about"];
   function route() {
@@ -438,6 +474,10 @@
       else a.removeAttribute("aria-current");
     });
     window.scrollTo(0, 0);
+
+    // วิดีโอเล่นเฉพาะตอนอยู่หน้าถ่ายทอดสด ออกแล้วหยุด กลับมาเล่นต่อจากจุดเดิม
+    if (name === "live") playLiveVideo();
+    else liveVideo.pause();
 
     // แผนที่ต้องโหลดตอนหน้าแรกแสดงอยู่ ไม่อย่างนั้นจะได้ขนาดเป็นศูนย์
     if (name === "home") {
