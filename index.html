@@ -22,6 +22,8 @@
     --count-line: #E5484D;
     --radius-sm: 6px;
     --radius-lg: 12px;
+    /* สีเส้นถนนบนแผนที่ ใช้ค่าเดียวทั้งโหมดสว่างและมืด เพราะตัวแผนที่เป็นโทนสว่างเสมอ */
+    --map-neutral: #7B8791;
   }
   @media (prefers-color-scheme: dark) {
     :root:not([data-theme="light"]) {
@@ -144,7 +146,12 @@
     display: flex; align-items: center; justify-content: center;
     color: var(--muted);
   }
+  .video iframe {
+    position: absolute; inset: 0;
+    width: 100%; height: 100%; border: 0;
+  }
   .count-line {
+    pointer-events: none;
     position: absolute; left: 0; right: 0; top: 62%;
     height: 2px; background: var(--count-line);
   }
@@ -261,7 +268,12 @@
   <div class="page" id="page-live">
     <h1 class="page-title">ถ่ายทอดสด</h1>
     <div class="video" aria-label="พื้นที่วิดีโอ">
-      <span>ไม่มีสัญญาณวิดีโอ</span>
+      <iframe
+        src="https://www.youtube.com/embed/JMfT-Gkwy1Q"
+        title="คลิปทดสอบการเล่นวิดีโอ"
+        allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
+        referrerpolicy="strict-origin-when-cross-origin"
+        allowfullscreen></iframe>
       <div class="count-line" aria-hidden="true"></div>
     </div>
     <div class="counters">
@@ -338,7 +350,7 @@
   // =====================================================
   const LONGDO_API_KEY = "be4761fc916359b83715d0aefa51a786";
 
-  // ---------- ข้อมูลถนน (ตอนนี้แสดงเป็นสีเขียวอย่างเดียว) ----------
+  // ---------- ข้อมูลถนน (ตอนนี้เป็นสีเทา = ยังไม่มีข้อมูลสภาพจราจร) ----------
   // พิกัดแต่ละจุดเรียงตามแนวถนน ใส่เพิ่มได้ไม่จำกัด
   const ROADS = [
     {
@@ -362,7 +374,6 @@
   ];
   const MAP_CENTER = { lon: 100.616272, lat: 14.039592 };
   const MAP_ZOOM = 15;
-  const LINE_GREEN = "rgba(52,201,138,0.95)";
 
   // ---------- แผนที่ ----------
   let map = null;
@@ -375,11 +386,13 @@
   }
 
   function initMap() {
+    // อ่านสีจากตัวแปร --map-neutral ใน CSS
+    const lineColor = getComputedStyle(document.documentElement).getPropertyValue("--map-neutral").trim();
     map = new longdo.Map({ placeholder: document.getElementById("map") });
     map.location(MAP_CENTER, true);
     map.zoom(MAP_ZOOM, true);
     ROADS.forEach(road => {
-      const line = new longdo.Polyline(road.path, { lineWidth: 6, lineColor: LINE_GREEN });
+      const line = new longdo.Polyline(road.path, { lineWidth: 6, lineColor: lineColor });
       map.Overlays.add(line);
     });
     mapMessage.hidden = true;
