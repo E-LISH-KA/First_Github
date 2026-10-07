@@ -351,11 +351,20 @@
 
 </main>
 
+<!-- ไลบรารีเล่นภาพสดแบบ HLS สำหรับเบราว์เซอร์ที่เล่นเองไม่ได้ -->
+<script src="https://cdn.jsdelivr.net/npm/hls.js@1/dist/hls.min.js"></script>
 <script>
   // =====================================================
   // ใส่ Longdo Map API Key ตรงนี้
   // =====================================================
   const LONGDO_API_KEY = "be4761fc916359b83715d0aefa51a786";
+
+  // =====================================================
+  // ลิงก์ภาพสด (HLS) จาก MediaMTX ต้องลงท้ายด้วย /index.m3u8
+  // ตัวอย่าง: "https://คำสุ่ม.trycloudflare.com/vista/index.m3u8"
+  // เว้นว่างไว้ ("") = ใช้คลิปทดสอบ video/demo-traffic.mp4 เหมือนเดิม
+  // =====================================================
+  const STREAM_URL = "https://fairy-looked-keith-using.trycloudflare.com/vista/index.m3u8";
 
   // ---------- ข้อมูลถนน (ตอนนี้เป็นสีเทา = ยังไม่มีข้อมูลสภาพจราจร) ----------
   // พิกัดแต่ละจุดเรียงตามแนวถนน ใส่เพิ่มได้ไม่จำกัด
@@ -437,7 +446,14 @@
   const liveVideo = document.getElementById("live-video");
   const soundToggle = document.getElementById("sound-toggle");
   const videoMessage = document.getElementById("video-message");
+  const useStream = STREAM_URL.trim() !== ""; // true = ใช้ภาพสด, false = ใช้คลิปทดสอบ
+  let hls = null; // ตัวเล่นภาพสด สร้างตอนเข้าหน้าถ่ายทอดสด และลบทิ้งตอนออก
   liveVideo.muted = true; // เบราว์เซอร์ยอมให้เล่นเองได้เฉพาะตอนปิดเสียง
+
+  if (useStream) {
+    liveVideo.loop = false; // ภาพสดไม่ต้องวนซ้ำ
+    videoMessage.textContent = "ไม่มีสัญญาณภาพสด ลองออกแล้วกลับเข้าหน้านี้ใหม่";
+  }
 
   function updateSoundToggle() {
     const muted = liveVideo.muted;
@@ -451,7 +467,45 @@
     soundToggle.hidden = true;
   }
 
+  function hideVideoError() {
+    videoMessage.hidden = true;
+    soundToggle.hidden = false;
+  }
+
+  // เริ่มดึงภาพสด: ใช้ hls.js ถ้าเบราว์เซอร์รองรับ
+  // ถ้าไม่รองรับแต่เล่น HLS เองได้ (เช่น Safari รุ่นเก่าบน iPhone) ให้เบราว์เซอร์เล่นเอง
+  function startStream() {
+    hideVideoError();
+    if (window.Hls && Hls.isSupported()) {
+      hls = new Hls();
+      hls.on(Hls.Events.ERROR, (event, data) => {
+        // data.fatal = เสียจนเล่นต่อไม่ได้ เช่น หาสตรีมไม่เจอ หรือ OBS หยุดส่งภาพ
+        if (data.fatal) {
+          stopStream();
+          showVideoError();
+        }
+      });
+      hls.loadSource(STREAM_URL);
+      hls.attachMedia(liveVideo);
+    } else if (liveVideo.canPlayType("application/vnd.apple.mpegurl")) {
+      liveVideo.src = STREAM_URL;
+    } else {
+      showVideoError();
+    }
+  }
+
+  // หยุดดึงภาพสดและล้างวิดีโอ กลับเข้าหน้าใหม่จะได้ภาพล่าสุด และไม่เปลืองเน็ตตอนอยู่หน้าอื่น
+  function stopStream() {
+    if (hls) {
+      hls.destroy();
+      hls = null;
+    }
+    liveVideo.removeAttribute("src");
+    liveVideo.load();
+  }
+
   function playLiveVideo() {
+    if (useStream) startStream();
     const result = liveVideo.play();
     // ถ้าเบราว์เซอร์ไม่ยอมเล่น play() จะส่งข้อผิดพลาดกลับมา ต้องดักไว้ไม่ให้ขึ้นเป็น error ในคอนโซล
     if (result && typeof result.catch === "function") {
@@ -459,6 +513,11 @@
         if (err.name === "NotSupportedError") showVideoError();
       });
     }
+  }
+
+  function stopLiveVideo() {
+    liveVideo.pause();
+    if (useStream) stopStream();
   }
 
   soundToggle.addEventListener("click", () => {
@@ -481,9 +540,10 @@
     });
     window.scrollTo(0, 0);
 
-    // วิดีโอเล่นเฉพาะตอนอยู่หน้าถ่ายทอดสด ออกแล้วหยุด กลับมาเล่นต่อจากจุดเดิม
+    // วิดีโอเล่นเฉพาะตอนอยู่หน้าถ่ายทอดสด ออกแล้วหยุด
+    // คลิปทดสอบจะเล่นต่อจากจุดเดิม ส่วนภาพสดจะเริ่มที่ภาพล่าสุดเสมอ
     if (name === "live") playLiveVideo();
-    else liveVideo.pause();
+    else stopLiveVideo();
 
     // แผนที่ต้องโหลดตอนหน้าแรกแสดงอยู่ ไม่อย่างนั้นจะได้ขนาดเป็นศูนย์
     if (name === "home") {
