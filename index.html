@@ -174,8 +174,10 @@
   }
 
   /* ---------- Stats ---------- */
-  .filters { display: flex; justify-content: space-between; gap: 16px; flex-wrap: wrap; margin-bottom: 20px; }
-  .filters label { display: flex; flex-direction: column; gap: 4px; font-size: 0.9rem; color: var(--muted); min-width: 220px; flex: 0 1 320px; }
+  .stats-head { display: flex; flex-wrap: wrap; align-items: flex-end; justify-content: space-between; gap: 16px; margin-bottom: 16px; }
+  .stats-head .page-title { margin: 0; }
+  .filters { display: flex; gap: 16px; flex-wrap: wrap; flex: 0 1 480px; }
+  .filters label { display: flex; flex-direction: column; gap: 4px; font-size: 0.9rem; color: var(--muted); min-width: 200px; flex: 1 1 200px; }
   .filters select {
     appearance: none;
     padding: 10px 40px 10px 14px;
@@ -184,12 +186,51 @@
     background: var(--placeholder) url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='16' height='16' viewBox='0 0 24 24' fill='none' stroke='%2366727C' stroke-width='3'%3E%3Cpath d='M6 9l6 6 6-6'/%3E%3C/svg%3E") no-repeat right 12px center;
     color: var(--ink); font-size: 1rem; cursor: pointer;
   }
-  .chart-area {
-    min-height: 340px; background: var(--placeholder); border-radius: var(--radius-sm);
-    display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 6px;
-    text-align: center; padding: 20px;
+
+  /* ซ้าย: กราฟ + ตาราง 7 วัน, ขวา: อันดับช่วงหนาแน่น (จอแคบจะเรียงเป็นคอลัมน์เดียวเอง) */
+  .stats-grid { display: flex; flex-wrap: wrap; gap: 16px; align-items: flex-start; }
+  .stats-main { flex: 3 1 560px; min-width: 0; display: flex; flex-direction: column; gap: 16px; }
+  .stats-side { flex: 2 1 380px; min-width: 0; }
+
+  /* กราฟ: --at คือชั่วโมง (0–24) ใช้บอกตำแหน่งแนวนอน */
+  .chart { display: grid; grid-template-columns: auto 1fr; grid-template-rows: 220px auto; column-gap: 8px; }
+  .chart-y { display: flex; flex-direction: column; justify-content: space-between; text-align: right; font-size: 0.8rem; line-height: 1; color: var(--muted); }
+  .chart-plot {
+    position: relative;
+    border-left: 1px solid var(--muted); border-bottom: 1px solid var(--muted);
+    background-image: linear-gradient(var(--line) 1px, transparent 1px);
+    background-size: 100% 25%;
   }
-  .chart-area strong { font-weight: 600; }
+  .rush { position: absolute; top: 0; bottom: 0; left: calc(var(--at) / 24 * 100%); border-left: 2px dashed var(--ink); }
+  .rush-label {
+    position: absolute; top: 8px; left: 6px; white-space: nowrap;
+    padding: 2px 8px; font-size: 0.8rem;
+    background: var(--surface); border: 1px solid var(--line); border-radius: var(--radius-sm);
+  }
+  .chart-empty {
+    position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%);
+    width: max-content; max-width: 90%; margin: 0; padding: 4px 10px;
+    text-align: center; background: var(--surface);
+  }
+  .chart-x { grid-column: 2; position: relative; height: 28px; font-size: 0.8rem; color: var(--muted); }
+  .chart-x span { position: absolute; top: 6px; left: calc(var(--at) / 24 * 100%); transform: translateX(-50%); }
+  .chart-x span:first-child { transform: none; }
+  .chart-x span:last-child { transform: translateX(-100%); }
+
+  /* ตาราง: กว้างเกินจอเมื่อไหร่จะเลื่อนซ้าย-ขวาได้ */
+  .table-scroll { overflow-x: auto; border: 1px solid var(--line); border-radius: var(--radius-sm); }
+  .data-table { width: 100%; border-collapse: collapse; font-size: 0.9rem; }
+  .data-table th, .data-table td { text-align: left; padding: 10px 12px; border-top: 1px solid var(--line); }
+  .data-table thead th { border-top: 0; background: var(--placeholder); font-size: 0.85rem; font-weight: 600; }
+  .data-table tbody th { font-weight: 600; }
+  .data-table .top-row td { background: var(--asphalt); color: var(--on-asphalt); }
+  .week-table { min-width: 480px; }
+  .week-table td { white-space: nowrap; }
+
+  @media (max-width: 760px) {
+    .chart-x .minor { display: none; }
+    .rush-pm .rush-label { left: auto; right: 6px; top: 40px; }
+  }
 
   /* ---------- About ---------- */
   .about h1 { font-size: 2rem; font-weight: 700; margin: 0 0 20px; line-height: 1.3; }
@@ -287,23 +328,20 @@
 
   <!-- ================= รายงานสถิติ ================= -->
   <div class="page" id="page-stats">
-    <h1 class="page-title">รายงานสถิติ</h1>
-    <div class="panel">
+    <div class="stats-head">
+      <h1 class="page-title">รายงานสถิติ</h1>
       <div class="filters">
         <label>ช่วงเวลา
           <select id="range">
-            <option>วันนี้</option>
-            <option>เดือนนี้</option>
-            <option>สองเดือนก่อน</option>
-            <option>สามเดือนก่อน</option>
-            <option>สี่เดือนก่อน</option>
-            <option>ห้าเดือนก่อน</option>
-            <option>หกเดือนก่อน</option>
+            <option>สัปดาห์นี้</option>
+            <option>สัปดาห์ก่อน</option>
+            <option>2 สัปดาห์ก่อน</option>
+            <option>3 สัปดาห์ก่อน</option>
           </select>
         </label>
         <label>ประเภทรถ
           <select id="type">
-            <option>ทั้งหมด</option>
+            <option>ทุกประเภท</option>
             <option>Bus (รถบัส)</option>
             <option>Car (รถยนต์)</option>
             <option>Pickup (รถกระบะ)</option>
@@ -312,9 +350,69 @@
           </select>
         </label>
       </div>
-      <div class="chart-area">
-        <strong>กราฟแสดงสัดส่วนจำนวนรถ</strong>
-        <span class="empty-note" id="chart-note">ยังไม่มีข้อมูล · วันนี้ · ทั้งหมด</span>
+    </div>
+
+    <div class="stats-grid">
+      <div class="stats-main">
+        <div class="panel">
+          <h2>ปริมาณรถตลอดวัน (ทุก 15 นาที)</h2>
+          <div class="chart">
+            <div class="chart-y" aria-hidden="true"><span>สูง</span><span>0</span></div>
+            <div class="chart-plot">
+              <div class="rush" style="--at: 7" aria-hidden="true"><span class="rush-label">เร่งด่วนเช้า</span></div>
+              <div class="rush rush-pm" style="--at: 18" aria-hidden="true"><span class="rush-label">เร่งด่วนเย็น</span></div>
+              <p class="chart-empty empty-note" id="chart-note">ยังไม่มีข้อมูล · สัปดาห์นี้ · ทุกประเภท</p>
+            </div>
+            <div class="chart-x" aria-hidden="true">
+              <span style="--at: 0">00:00</span>
+              <span style="--at: 3" class="minor">03:00</span>
+              <span style="--at: 6">06:00</span>
+              <span style="--at: 9" class="minor">09:00</span>
+              <span style="--at: 12">12:00</span>
+              <span style="--at: 15" class="minor">15:00</span>
+              <span style="--at: 18">18:00</span>
+              <span style="--at: 21" class="minor">21:00</span>
+              <span style="--at: 24">24:00</span>
+            </div>
+          </div>
+        </div>
+
+        <div class="panel">
+          <h2>สถิติย้อนหลัง 7 วัน</h2>
+          <div class="table-scroll">
+            <table class="data-table week-table">
+              <thead>
+                <tr><th scope="col" colspan="2">วันที่</th><th scope="col">จำนวนรถรวม (คัน)</th><th scope="col">ความเร็วเฉลี่ย (กม./ชม.)</th><th scope="col">ช่วงหนาแน่นสุด</th></tr>
+              </thead>
+              <tbody id="week-rows"><!-- แถววันที่สร้างด้วย JavaScript ท้ายไฟล์ --></tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+
+      <div class="stats-side">
+        <div class="panel">
+          <h2>ช่วงเวลาที่หนาแน่นที่สุดใน 30 วันล่าสุด</h2>
+          <div class="table-scroll">
+            <table class="data-table">
+              <thead>
+                <tr><th scope="col">#</th><th scope="col">วันและเวลา</th><th scope="col">รถ / 15 นาที</th></tr>
+              </thead>
+              <tbody>
+                <tr class="top-row"><td>1.</td><td>–</td><td>–</td></tr>
+                <tr><td>2.</td><td>–</td><td>–</td></tr>
+                <tr><td>3.</td><td>–</td><td>–</td></tr>
+                <tr><td>4.</td><td>–</td><td>–</td></tr>
+                <tr><td>5.</td><td>–</td><td>–</td></tr>
+                <tr><td>6.</td><td>–</td><td>–</td></tr>
+                <tr><td>7.</td><td>–</td><td>–</td></tr>
+                <tr><td>8.</td><td>–</td><td>–</td></tr>
+                <tr><td>9.</td><td>–</td><td>–</td></tr>
+                <tr><td>10.</td><td>–</td><td>–</td></tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
       </div>
     </div>
   </div>
@@ -364,7 +462,7 @@
   // ตัวอย่าง: "https://คำสุ่ม.trycloudflare.com/vista/index.m3u8"
   // เว้นว่างไว้ ("") = ใช้คลิปทดสอบ video/demo-traffic.mp4 เหมือนเดิม
   // =====================================================
-  const STREAM_URL = "https://fairy-looked-keith-using.trycloudflare.com/vista/index.m3u8";
+  const STREAM_URL = "";
 
   // ---------- ข้อมูลถนน (ตอนนี้เป็นสีเทา = ยังไม่มีข้อมูลสภาพจราจร) ----------
   // พิกัดแต่ละจุดเรียงตามแนวถนน ใส่เพิ่มได้ไม่จำกัด
@@ -560,6 +658,19 @@
   function updateNote() { note.textContent = "ยังไม่มีข้อมูล · " + range.value + " · " + type.value; }
   range.addEventListener("change", updateNote);
   type.addEventListener("change", updateNote);
+  // ---------- ตารางสถิติย้อนหลัง 7 วัน ----------
+  // สร้างแถวจากวันที่ในเครื่องผู้ดู เริ่มที่เมื่อวานแล้วย้อนหลังไป 7 วัน
+  // ยังไม่มีข้อมูล ช่องตัวเลขจึงเป็น –
+  const weekRows = document.getElementById("week-rows");
+  for (let i = 1; i <= 7; i++) {
+    const day = new Date();
+    day.setDate(day.getDate() - i);
+    const dayName = day.toLocaleDateString("th-TH", { weekday: "short" });               // เช่น พ.
+    const dayDate = day.toLocaleDateString("th-TH", { day: "numeric", month: "short" }); // เช่น 7 ต.ค.
+    // ${...} คือการแทรกค่าตัวแปรลงในข้อความที่ครอบด้วย ` `
+    weekRows.insertAdjacentHTML("beforeend",
+      `<tr><th scope="row">${dayName}</th><td>${dayDate}</td><td>–</td><td>–</td><td>–</td></tr>`);
+  }
 </script>
 </body>
 </html>
